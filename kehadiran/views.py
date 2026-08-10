@@ -1,3 +1,4 @@
 from django.shortcuts import render
 
-# Create your views here.
+def halaman_scan(request):
+    return render(request, 'kehadiran/scan.html')

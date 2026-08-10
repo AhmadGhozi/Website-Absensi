@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>testing</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0b1120; color: white; }
+        .card-bg { background-color: #111827; }
+        
+        /* Efek garis sudut pada scanner */
+        .scanner-frame { position: relative; }
+        .scanner-frame::before, .scanner-frame::after,
+        .scanner-frame-inner::before, .scanner-frame-inner::after {
+            content: ''; position: absolute; width: 30px; height: 30px; border-color: #3b82f6; border-style: solid;
+        }
+        .scanner-frame::before { top: 0; left: 0; border-width: 2px 0 0 2px; border-radius: 12px 0 0 0; }
+        .scanner-frame::after { top: 0; right: 0; border-width: 2px 2px 0 0; border-radius: 0 12px 0 0; }
+        .scanner-frame-inner::before { bottom: 0; left: 0; border-width: 0 0 2px 2px; border-radius: 0 0 0 12px; }
+        .scanner-frame-inner::after { bottom: 0; right: 0; border-width: 0 2px 2px 0; border-radius: 0 0 12px 0; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- NAVBAR (Akan selalu muncul di semua halaman) -->
+    <nav class="flex justify-between items-center px-8 py-4 border-b border-slate-800 bg-[#0b1120]">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                <i class="fa-solid fa-shield-halved text-white text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight">testing</h1>
+                <p class="text-blue-400 text-xs">Sistem Absensi Digital</p>
+            </div>
+        </div>
+
+        <div class="flex bg-slate-800 rounded-full p-1 gap-1">
+            <a href="scan" class="bg-blue-600 text-white px-5 py-2 rounded-full text-sm font-medium flex items-center gap-2">
+                <i class="fa-solid fa-expand"></i> Scanner
+            </a>
+            <a href="#" class="text-slate-400 hover:text-white px-5 py-2 rounded-full text-sm font-medium flex items-center gap-2 transition">
+                <i class="fa-solid fa-qrcode"></i> Kartu QR
+            </a>
+            <a href="/" class="text-slate-400 hover:text-white px-5 py-2 rounded-full text-sm font-medium flex items-center gap-2 transition">
+                <i class="fa-solid fa-chart-line"></i> Dashboard
+            </a>
+        </div>
+
+        <div class="text-right">
+            <div class="font-bold text-blue-400" id="nav-time">00.00</div>
+            <div class="text-slate-400 text-xs" id="nav-date">Tanggal</div>
+        </div>
+    </nav>
+
+    <!-- AREA KONTEN UTAMA (Yang akan diisi oleh file lain) -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-6 mt-6">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <!-- Script Jam Digital -->
+    <script>
+        function updateClock() {
+            const now = new Date();
+            
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            
+            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            
+            const dayName = days[now.getDay()];
+            const day = String(now.getDate()).padStart(2, '0');
+            const monthName = months[now.getMonth()];
+            const year = now.getFullYear();
+            const shortMonth = monthName.substring(0, 3);
+
+            // Update Navbar Clock
+            if(document.getElementById('nav-time')) document.getElementById('nav-time').textContent = `${hours}.${minutes}`;
+            if(document.getElementById('nav-date')) document.getElementById('nav-date').textContent = `${day} ${shortMonth} ${year}`;
+            
+            // Update Main Clock (jika ada di halaman tersebut)
+            if(document.getElementById('main-time')) document.getElementById('main-time').textContent = `${hours}.${minutes}.${seconds}`;
+            if(document.getElementById('main-date')) document.getElementById('main-date').textContent = `${dayName}, ${day} ${monthName} ${year}`;
+        }
+
+        setInterval(updateClock, 1000);
+        updateClock();
+    </script>
+</body>
+</html>
