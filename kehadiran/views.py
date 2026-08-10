@@ -8,6 +8,9 @@ from datetime import datetime, date
 from .models import Siswa, Absensi
 from django.utils import timezone
 from datetime import time
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 
 def halaman_scan(request):
     return render(request, 'kehadiran/scan.html')
@@ -46,6 +49,7 @@ def proses_scan(request):
     # TAMBAHAN INI: Jika diakses lewat GET, kembalikan ke halaman scan agar tidak error
     return redirect('scan')
 
+@login_required
 def manajemen_siswa(request):
     semua_siswa = Siswa.objects.all()
     context = {'semua_siswa': semua_siswa}
@@ -88,6 +92,7 @@ def download_qr(request, pk):
         return response
     return redirect('manajemen_siswa')
 
+@login_required
 def cetak_laporan(request):
     tanggal_str = request.GET.get('tanggal', str(date.today()))
     tanggal_obj = datetime.strptime(tanggal_str, '%Y-%m-%d').date()
@@ -134,3 +139,21 @@ def cetak_laporan(request):
         'kelas_terpilih': kelas_terpilih
     }
     return render(request, 'kehadiran/cetak_laporan.html', context)
+
+def halaman_login(request):
+    if request.method == 'POST':
+        username_input = request.POST.get('username')
+        password_input = request.POST.get('password')
+        
+        user = authenticate(request, username=username_input, password=password_input)
+        if user is not None:
+            login(request, user)
+            return redirect('dashboard')
+        else:
+            messages.error(request, 'Username atau password salah!')
+            
+    return render(request, 'kehadiran/login.html')
+
+def proses_logout(request):
+    logout(request)
+    return redirect('login')
