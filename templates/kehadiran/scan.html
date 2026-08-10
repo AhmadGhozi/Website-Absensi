@@ -106,7 +106,6 @@
     // Menggunakan Html5Qrcode murni (tanpa UI bawaan)
     const html5QrCode = new Html5Qrcode("reader");
 
-    // Fungsi jika QR berhasil terbaca
     function onScanSuccess(decodedText, decodedResult) {
         html5QrCode.pause(); 
         
@@ -173,9 +172,8 @@
     html5QrCode.start(
         { facingMode: "environment" }, // Akan memprioritaskan kamera belakang jika di HP/Tablet
         {
-            fps: 20,
-            qrbox: { width: 250, height: 250 },
-            disableFlip: true
+            fps: 10,
+            qrbox: { width: 250, height: 250 }
         },
         onScanSuccess
     ).catch(err => {
@@ -190,5 +188,4 @@
         });
     });
 </script>
-
 {% endblock %}

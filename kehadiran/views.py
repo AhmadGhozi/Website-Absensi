@@ -21,9 +21,9 @@ def proses_scan(request):
         if not siswa:
             return JsonResponse({'status': 'error', 'pesan': 'QR Code tidak terdaftar!'})
             
-        waktu_lokal = timezone.localtime(timezone.now())
-        hari_ini = waktu_lokal.date()
-        waktu_sekarang = waktu_lokal.time()
+        waktu_sekarang = datetime.now()
+        hari_ini = waktu_sekarang.date()
+        jam_ini = waktu_sekarang.time()
         
         if Absensi.objects.filter(siswa=siswa, tanggal=hari_ini).exists():
             return JsonResponse({
@@ -32,7 +32,7 @@ def proses_scan(request):
             })
             
         batas_waktu = time(7, 0, 0)
-        status_kehadiran = 'Terlambat' if waktu_sekarang > batas_waktu else 'Hadir'
+        status_kehadiran = 'Terlambat' if jam_ini > batas_waktu else 'Hadir'
         
         Absensi.objects.create(siswa=siswa, status=status_kehadiran)
         
@@ -40,8 +40,11 @@ def proses_scan(request):
             'status': 'success',
             'nama': siswa.nama,
             'status_kehadiran': status_kehadiran,
-            'waktu': waktu_lokal.strftime('%H:%M:%S')
+            'waktu': waktu_sekarang.strftime('%H:%M:%S')
         })
+    
+    # TAMBAHAN INI: Jika diakses lewat GET, kembalikan ke halaman scan agar tidak error
+    return redirect('scan')
 
 def manajemen_siswa(request):
     semua_siswa = Siswa.objects.all()
