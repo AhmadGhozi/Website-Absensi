@@ -25,6 +25,14 @@
         .scanner-frame::after { top: 0; right: 0; border-width: 2px 2px 0 0; border-radius: 0 12px 0 0; }
         .scanner-frame-inner::before { bottom: 0; left: 0; border-width: 0 0 2px 2px; border-radius: 0 0 0 12px; }
         .scanner-frame-inner::after { bottom: 0; right: 0; border-width: 0 2px 2px 0; border-radius: 0 0 12px 0; }
+
+        #reader video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+            transform: scaleX(1) !important;
+            -webkit-transform: scaleX(1) !important;
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">

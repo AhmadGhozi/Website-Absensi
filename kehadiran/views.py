@@ -1,11 +1,40 @@
 from django.shortcuts import render
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from .models import Siswa
 import qrcode
+import json
+from datetime import datetime
+from .models import Siswa, Absensi
 
 def halaman_scan(request):
     return render(request, 'kehadiran/scan.html')
+
+def proses_scan(request):
+    if request.method == 'POST':
+        # Mengambil data NISN yang dikirim oleh Javascript
+        data = json.loads(request.body)
+        nisn_scanned = data.get('nisn')
+        
+        # 1. Cari apakah NISN tersebut ada di database?
+        siswa = Siswa.objects.filter(nisn=nisn_scanned).first()
+        if not siswa:
+            return JsonResponse({'status': 'error', 'pesan': 'QR Code tidak terdaftar!'})
+            
+        # 2. Cek apakah anak ini sudah absen hari ini?
+        hari_ini = datetime.now().date()
+        if Absensi.objects.filter(siswa=siswa, tanggal=hari_ini).exists():
+            return JsonResponse({'status': 'warning', 'pesan': f'{siswa.nama} sudah absen hari ini.'})
+            
+        # 3. Tentukan status (Misal: Lewat dari jam 07:00 dianggap Terlambat)
+        sekarang = datetime.now().time()
+        batas_waktu = datetime.strptime('07:00:00', '%H:%M:%S').time()
+        status_kehadiran = 'Terlambat' if sekarang > batas_waktu else 'Hadir'
+        
+        # 4. Simpan ke database Absensi
+        Absensi.objects.create(siswa=siswa, status=status_kehadiran)
+        
+        return JsonResponse({'status': 'success', 'pesan': f'Berhasil: {siswa.nama} ({status_kehadiran})'})
 
 def manajemen_siswa(request):
     semua_siswa = Siswa.objects.all()

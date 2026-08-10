@@ -1,6 +1,10 @@
 {% extends 'base.html' %}
 
 {% block content %}
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
     
     <!-- BAGIAN KIRI (SCANNER) -->
@@ -8,9 +12,7 @@
         <!-- Kotak Scanner -->
         <div class="card-bg w-80 h-80 rounded-2xl flex items-center justify-center mb-6 p-4 shadow-lg border border-slate-800">
             <div class="scanner-frame w-full h-full p-1 relative">
-                <div class="scanner-frame-inner w-full h-full border border-slate-700 rounded-xl flex items-center justify-center bg-[#0d1527]">
-                    <i class="fa-solid fa-qrcode text-6xl text-slate-600"></i>
-                </div>
+                <div id="reader" class="w-full h-full rounded-xl overflow-hidden bg-[#0d1527]"></div>
             </div>
         </div>
 
@@ -99,4 +101,66 @@
         </div>
     </section>
 </div>
+
+<script>
+    // Menggunakan Html5Qrcode murni (tanpa UI bawaan)
+    const html5QrCode = new Html5Qrcode("reader");
+
+    // Fungsi jika QR berhasil terbaca
+    function onScanSuccess(decodedText, decodedResult) {
+        // Hentikan kamera sejenak (pause) agar tidak nge-scan berkali-kali dalam sedetik
+        html5QrCode.pause(); 
+        
+        // Kirim data NISN ke backend Django
+        fetch('/scan/proses/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}' // Wajib untuk keamanan Django
+            },
+            body: JSON.stringify({ nisn: decodedText })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Tampilkan pop-up SweetAlert2
+            let iconType = 'success';
+            if (data.status === 'error') iconType = 'error';
+            if (data.status === 'warning') iconType = 'warning';
+
+            Swal.fire({
+                title: data.pesan,
+                icon: iconType,
+                background: '#111827',
+                color: '#ffffff',
+                timer: 2500, // Otomatis hilang dalam 2.5 detik
+                showConfirmButton: false
+            }).then(() => {
+                // Lanjutkan/nyalakan kamera kembali setelah pop-up hilang
+                html5QrCode.resume();
+            });
+        });
+    }
+
+    // Fungsi otomatis menyalakan kamera saat halaman dimuat
+    html5QrCode.start(
+        { facingMode: "environment" }, // Akan memprioritaskan kamera belakang jika di HP/Tablet
+        {
+            fps: 20,
+            qrbox: { width: 250, height: 250 },
+            disableFlip: true
+        },
+        onScanSuccess
+    ).catch(err => {
+        console.error("Gagal memulai kamera: ", err);
+        Swal.fire({
+            title: "Akses Kamera Ditolak",
+            text: "Mohon izinkan browser mengakses kamera Anda.",
+            icon: "error",
+            background: '#111827',
+            color: '#ffffff',
+            confirmButtonColor: '#3b82f6'
+        });
+    });
+</script>
+
 {% endblock %}
