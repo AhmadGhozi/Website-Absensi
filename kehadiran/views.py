@@ -4,7 +4,7 @@ from django.http import HttpResponse, JsonResponse
 from .models import Siswa
 import qrcode
 import json
-from datetime import datetime
+from datetime import datetime, date
 from .models import Siswa, Absensi
 from django.utils import timezone
 from datetime import time
@@ -87,3 +87,50 @@ def download_qr(request, pk):
         response['Content-Disposition'] = f'attachment; filename="QR-{siswa.nisn}-{siswa.nama}.png"'
         return response
     return redirect('manajemen_siswa')
+
+def cetak_laporan(request):
+    tanggal_str = request.GET.get('tanggal', str(date.today()))
+    tanggal_obj = datetime.strptime(tanggal_str, '%Y-%m-%d').date()
+    
+    # Ambil pilihan kelas dari form (default 'semua')
+    kelas_terpilih = request.GET.get('kelas', 'semua')
+    
+    # Filter kelas berdasarkan pilihan pengguna
+    if kelas_terpilih and kelas_terpilih != 'semua':
+        daftar_kelas = [kelas_terpilih]
+    else:
+        daftar_kelas = Siswa.objects.values_list('kelas', flat=True).distinct().order_by('kelas')
+        
+    laporan_per_kelas = []
+    
+    for kelas in daftar_kelas:
+        siswa_kelas = Siswa.objects.filter(kelas=kelas).order_by('nama')
+        data_siswa = []
+        
+        for s in siswa_kelas:
+            absen = Absensi.objects.filter(siswa=s, tanggal=tanggal_obj).first()
+            if absen:
+                status = absen.status
+                waktu = absen.waktu.strftime('%H:%M:%S')
+            else:
+                status = 'Alpha'
+                waktu = '-'
+                
+            data_siswa.append({
+                'nama': s.nama,
+                'nisn': s.nisn,
+                'status': status,
+                'waktu': waktu
+            })
+            
+        laporan_per_kelas.append({
+            'kelas': kelas,
+            'data_siswa': data_siswa
+        })
+        
+    context = {
+        'tanggal': tanggal_obj,
+        'laporan_per_kelas': laporan_per_kelas,
+        'kelas_terpilih': kelas_terpilih
+    }
+    return render(request, 'kehadiran/cetak_laporan.html', context)

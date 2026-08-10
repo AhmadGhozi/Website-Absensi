@@ -9,4 +9,5 @@ urlpatterns = [
     path('siswa/edit/<int:pk>/', views.edit_siswa, name='edit_siswa'),
     path('siswa/hapus/<int:pk>/', views.hapus_siswa, name='hapus_siswa'),
     path('siswa/download-qr/<int:pk>/', views.download_qr, name='download_qr'),
+    path('laporan/cetak/', views.cetak_laporan, name='cetak_laporan'),
 ]

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Laporan Absensi - {{ tanggal }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media print {
+            body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-white text-slate-800 p-8" onload="window.print()">
+    <!-- Tombol navigasi (sembunyi saat diprint) -->
+    <div class="no-print mb-6 flex justify-between items-center">
+        <a href="/dashboard/" class="bg-slate-200 px-4 py-2 rounded-lg font-medium text-slate-700 text-sm">Kembali</a>
+        <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg font-semibold shadow text-sm">Cetak / Simpan PDF</button>
+    </div>
+
+    <!-- Kop Surat Resmi -->
+    <div class="text-center border-b-4 border-slate-800 pb-4 mb-6">
+        <h1 class="text-2xl font-bold uppercase tracking-wide">NAMA SEKOLAH</h1>
+        <p class="text-sm text-slate-600 mt-1">Laporan Kehadiran Harian Siswa</p>
+        <p class="text-sm font-semibold mt-1">Tanggal: {{ tanggal }}</p>
+    </div>
+
+    <!-- Perulangan Tabel Berdasarkan Kelas -->
+    {% for item in laporan_per_kelas %}
+    <div class="mb-8">
+        <h3 class="text-base font-bold bg-slate-100 px-3 py-1.5 border border-slate-300 mb-2">Kelas: {{ item.kelas }}</h3>
+        <table class="w-full border-collapse border border-slate-300 text-sm">
+            <thead>
+                <tr class="bg-slate-100">
+                    <th class="border border-slate-300 p-2 text-center w-12">No</th>
+                    <th class="border border-slate-300 p-2 text-left">NISN</th>
+                    <th class="border border-slate-300 p-2 text-left">Nama Siswa</th>
+                    <th class="border border-slate-300 p-2 text-center">Waktu Scan</th>
+                    <th class="border border-slate-300 p-2 text-center">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in item.data_siswa %}
+                <tr>
+                    <td class="border border-slate-300 p-2 text-center">{{ forloop.counter }}</td>
+                    <td class="border border-slate-300 p-2">{{ s.nisn }}</td>
+                    <td class="border border-slate-300 p-2 font-medium">{{ s.nama }}</td>
+                    <td class="border border-slate-300 p-2 text-center font-mono">{{ s.waktu }}</td>
+                    <td class="border border-slate-300 p-2 text-center font-semibold 
+                        {% if s.status == 'Hadir' %} text-emerald-600 
+                        {% elif s.status == 'Terlambat' %} text-orange-600 
+                        {% else %} text-red-600 {% endif %}">
+                        {{ s.status }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endfor %}
+
+    <!-- Kolom Tanda Tangan -->
+    <div class="mt-12 flex justify-end">
+        <div class="text-center w-64">
+            <p class="mb-16 text-sm">Mengetahui,<br>Guru Piket / Kepala Sekolah</p>
+            <p class="font-bold underline text-sm">( ........................................ )</p>
+        </div>
+    </div>
+</body>
+</html>
