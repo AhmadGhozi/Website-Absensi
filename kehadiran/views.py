@@ -6,35 +6,42 @@ import qrcode
 import json
 from datetime import datetime
 from .models import Siswa, Absensi
+from django.utils import timezone
+from datetime import time
 
 def halaman_scan(request):
     return render(request, 'kehadiran/scan.html')
 
 def proses_scan(request):
     if request.method == 'POST':
-        # Mengambil data NISN yang dikirim oleh Javascript
         data = json.loads(request.body)
         nisn_scanned = data.get('nisn')
         
-        # 1. Cari apakah NISN tersebut ada di database?
         siswa = Siswa.objects.filter(nisn=nisn_scanned).first()
         if not siswa:
             return JsonResponse({'status': 'error', 'pesan': 'QR Code tidak terdaftar!'})
             
-        # 2. Cek apakah anak ini sudah absen hari ini?
-        hari_ini = datetime.now().date()
-        if Absensi.objects.filter(siswa=siswa, tanggal=hari_ini).exists():
-            return JsonResponse({'status': 'warning', 'pesan': f'{siswa.nama} sudah absen hari ini.'})
-            
-        # 3. Tentukan status (Misal: Lewat dari jam 07:00 dianggap Terlambat)
-        sekarang = datetime.now().time()
-        batas_waktu = datetime.strptime('07:00:00', '%H:%M:%S').time()
-        status_kehadiran = 'Terlambat' if sekarang > batas_waktu else 'Hadir'
+        waktu_lokal = timezone.localtime(timezone.now())
+        hari_ini = waktu_lokal.date()
+        waktu_sekarang = waktu_lokal.time()
         
-        # 4. Simpan ke database Absensi
+        if Absensi.objects.filter(siswa=siswa, tanggal=hari_ini).exists():
+            return JsonResponse({
+                'status': 'warning', 
+                'pesan': f'{siswa.nama} sudah absen hari ini.'
+            })
+            
+        batas_waktu = time(7, 0, 0)
+        status_kehadiran = 'Terlambat' if waktu_sekarang > batas_waktu else 'Hadir'
+        
         Absensi.objects.create(siswa=siswa, status=status_kehadiran)
         
-        return JsonResponse({'status': 'success', 'pesan': f'Berhasil: {siswa.nama} ({status_kehadiran})'})
+        return JsonResponse({
+            'status': 'success',
+            'nama': siswa.nama,
+            'status_kehadiran': status_kehadiran,
+            'waktu': waktu_lokal.strftime('%H:%M:%S')
+        })
 
 def manajemen_siswa(request):
     semua_siswa = Siswa.objects.all()
@@ -59,7 +66,7 @@ def edit_siswa(request, pk):
         siswa.nisn = request.POST.get('nisn')
         siswa.nama = request.POST.get('nama')
         siswa.kelas = request.POST.get('kelas')
-        siswa.save() # Simpan perubahan
+        siswa.save()
         return redirect('manajemen_siswa')
         
     context = {'siswa': siswa}
