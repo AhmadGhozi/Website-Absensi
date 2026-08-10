@@ -78,8 +78,12 @@ WSGI_APPLICATION = 'sistem_sekolah.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'db_absensi',        # Nama database yang Anda buat di phpMyAdmin
+        'USER': 'root',              # Username default XAMPP/MySQL
+        'PASSWORD': '',              # Kosongkan jika Anda tidak mengatur password di XAMPP
+        'HOST': '127.0.0.1',         # Alamat server lokal (localhost)
+        'PORT': '3306',              # Port standar MySQL
     }
 }
 
