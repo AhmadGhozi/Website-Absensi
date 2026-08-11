@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+from datetime import time
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -116,7 +117,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'id'
 
 TIME_ZONE = 'Asia/Makassar'
 
@@ -137,3 +138,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = 'login'
 WABLAS_BASE_URL = os.environ.get("WABLAS_BASE_URL", "https://smg.wablas.com/")
 WABLAS_TOKEN = os.environ.get("WABLAS_TOKEN")  # jangan hardcode di sini juga
+BATAS_JAM_MASUK = time(10, 15, 0) # (jam, menit, detik)
+BATAS_JAM_PULANG = time(10, 0, 0)

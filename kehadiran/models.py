@@ -39,11 +39,15 @@ class Siswa(models.Model):
 
 class Absensi(models.Model):
     siswa = models.ForeignKey(Siswa, on_delete=models.CASCADE)
-    
+
     tanggal = models.DateField(default=timezone.now)
-    waktu = models.TimeField(default=timezone.now)
-    
+    jam_masuk = models.TimeField(null=True, blank=True)
+    jam_pulang = models.TimeField(null=True, blank=True)
+
     status = models.CharField(max_length=20)
-    
+
+    class Meta:
+        unique_together = ('siswa', 'tanggal')
+
     def __str__(self):
         return f"{self.siswa.nama} - {self.tanggal} ({self.status})"

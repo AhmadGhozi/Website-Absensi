@@ -21,40 +21,35 @@ def halaman_scan(request):
 logger = logging.getLogger(__name__)
 
 
-def kirim_wa_ortu(nomor_tujuan, nama_siswa, status_kehadiran, waktu):
-    api_url = f"{settings.WABLAS_BASE_URL}api/send-message"
+def kirim_wa_ortu(nomor_tujuan, nama_siswa, jenis_absen, status_kehadiran, waktu):
+    api_url = f"{settings.WABLAS_BASE_URL.rstrip('/')}/api/send-message"
 
-    pesan = (
-        f"Halo Bapak/Ibu, pemberitahuan bahwa anak Anda atas nama "
-        f"*{nama_siswa}* telah melakukan absensi di sekolah dengan status: "
-        f"*{status_kehadiran}* pada pukul {waktu}."
-    )
+    if jenis_absen == 'masuk':
+        pesan = (
+            f"Halo Bapak/Ibu, pemberitahuan bahwa anak Anda atas nama "
+            f"*{nama_siswa}* telah melakukan absensi *MASUK* di sekolah dengan status: "
+            f"*{status_kehadiran}* pada pukul {waktu}."
+        )
+    else:  # pulang
+        pesan = (
+            f"Halo Bapak/Ibu, pemberitahuan bahwa anak Anda atas nama "
+            f"*{nama_siswa}* telah melakukan absensi *PULANG* dari sekolah "
+            f"pada pukul {waktu}."
+        )
 
-    payload = {
-        "phone": nomor_tujuan,
-        "message": pesan,
-    }
-
-    headers = {
-        "Authorization": settings.WABLAS_TOKEN,
-    }
+    payload = {"phone": nomor_tujuan, "message": pesan}
+    headers = {"Authorization": settings.WABLAS_TOKEN}
 
     try:
         response = requests.post(api_url, data=payload, headers=headers, timeout=10)
         response.raise_for_status()
-
         try:
             hasil_json = response.json()
             logger.info("Berhasil terkirim via Wablas: %s", hasil_json)
             return hasil_json
         except ValueError:
-            logger.error(
-                "Balasan Wablas bukan JSON (Status %s): %s",
-                response.status_code,
-                response.text,
-            )
+            logger.error("Balasan Wablas bukan JSON (Status %s): %s", response.status_code, response.text)
             return None
-
     except requests.exceptions.Timeout:
         logger.error("Request ke Wablas timeout.")
         return None
@@ -69,53 +64,86 @@ def proses_scan(request):
     if request.method == 'POST':
         data = json.loads(request.body)
         nisn_scanned = data.get('nisn')
-        
+
         siswa = Siswa.objects.filter(nisn=nisn_scanned).first()
         if not siswa:
             return JsonResponse({'status': 'error', 'pesan': 'QR Code tidak terdaftar!'})
-            
+
         waktu_sekarang = datetime.now()
         hari_ini = waktu_sekarang.date()
         jam_ini = waktu_sekarang.time()
-        
-        if Absensi.objects.filter(siswa=siswa, tanggal=hari_ini).exists():
-            return JsonResponse({
-                'status': 'warning', 
-                'pesan': f'{siswa.nama} sudah absen hari ini.'
-            })
-            
-        batas_waktu = time(7, 0, 0)
-        status_kehadiran = 'Terlambat' if jam_ini > batas_waktu else 'Hadir'
-        
-        # Simpan ke database (sesuai kode Anda)
-        Absensi.objects.create(
-            siswa=siswa, 
-            status=status_kehadiran,
-            tanggal=hari_ini,  # Saya tambahkan ini jaga-jaga jika model Anda wajib diisi
-            waktu=jam_ini      # Saya tambahkan ini jaga-jaga jika model Anda wajib diisi
-        )
+        format_waktu = waktu_sekarang.strftime('%H:%M:%S')
 
-        if siswa.no_hp_ortu:
-            # Kita gunakan format waktu HH:MM:SS untuk pesan WA
-            format_waktu = waktu_sekarang.strftime('%H:%M:%S')
-            
-            # Panggil fungsi Wablas (pastikan fungsi kirim_wa_ortu sudah ada di file ini)
-            kirim_wa_ortu(
-                nomor_tujuan=siswa.no_hp_ortu, 
-                nama_siswa=siswa.nama, 
-                status_kehadiran=status_kehadiran, 
-                waktu=format_waktu
+        absensi_hari_ini = Absensi.objects.filter(siswa=siswa, tanggal=hari_ini).first()
+
+        # ==== KASUS 1: belum absen sama sekali hari ini -> ABSEN MASUK ====
+        if not absensi_hari_ini:
+            batas_masuk = settings.BATAS_JAM_MASUK
+            status_kehadiran = 'Terlambat' if jam_ini > batas_masuk else 'Hadir'
+
+            Absensi.objects.create(
+                siswa=siswa,
+                status=status_kehadiran,
+                tanggal=hari_ini,
+                jam_masuk=jam_ini,
             )
-        # ========================================================
-        
-        return JsonResponse({
-            'status': 'success',
-            'nama': siswa.nama,
-            'status_kehadiran': status_kehadiran,
-            'waktu': waktu_sekarang.strftime('%H:%M:%S')
-        })
 
-    print(f"---> HASIL SCAN DITERIMA DJANGO: '{nisn_siswa}' <---")
+            if siswa.no_hp_ortu:
+                kirim_wa_ortu(
+                    nomor_tujuan=siswa.no_hp_ortu,
+                    nama_siswa=siswa.nama,
+                    jenis_absen='masuk',
+                    status_kehadiran=status_kehadiran,
+                    waktu=format_waktu,
+                )
+
+            return JsonResponse({
+                'status': 'success',
+                'nama': siswa.nama,
+                'jenis': 'masuk',
+                'status_kehadiran': status_kehadiran,
+                'waktu': format_waktu,
+            })
+
+        # ==== KASUS 2: sudah absen masuk, belum absen pulang -> ABSEN PULANG ====
+        elif absensi_hari_ini.jam_masuk and not absensi_hari_ini.jam_pulang:
+            
+            # Validasi: cek apakah sudah lewat batas jam pulang
+            if jam_ini < settings.BATAS_JAM_PULANG:
+                return JsonResponse({
+                    'status': 'warning',
+                    'pesan': (
+                        f'Belum waktunya pulang. Absen pulang baru bisa dilakukan '
+                        f'mulai pukul {settings.BATAS_JAM_PULANG.strftime("%H:%M")}.'
+                    ),
+                })
+
+            absensi_hari_ini.jam_pulang = jam_ini
+            absensi_hari_ini.save()
+
+            if siswa.no_hp_ortu:
+                kirim_wa_ortu(
+                    nomor_tujuan=siswa.no_hp_ortu,
+                    nama_siswa=siswa.nama,
+                    jenis_absen='pulang',
+                    status_kehadiran=None,
+                    waktu=format_waktu,
+                )
+
+            return JsonResponse({
+                'status': 'success',
+                'nama': siswa.nama,
+                'jenis': 'pulang',
+                'waktu': format_waktu,
+            })
+
+        # ==== KASUS 3: sudah absen masuk DAN pulang -> tolak ====
+        else:
+            return JsonResponse({
+                'status': 'warning',
+                'pesan': f'{siswa.nama} sudah absen masuk dan pulang hari ini.',
+            })
+
     return redirect('scan')
 
 @login_required
@@ -169,41 +197,44 @@ def download_qr(request, pk):
 def cetak_laporan(request):
     tanggal_str = request.GET.get('tanggal', str(date.today()))
     tanggal_obj = datetime.strptime(tanggal_str, '%Y-%m-%d').date()
-    
+
     kelas_terpilih = request.GET.get('kelas', 'semua')
-    
+
     if kelas_terpilih and kelas_terpilih != 'semua':
         daftar_kelas = [kelas_terpilih]
     else:
         daftar_kelas = Siswa.objects.values_list('kelas', flat=True).distinct().order_by('kelas')
-        
+
     laporan_per_kelas = []
-    
+
     for kelas in daftar_kelas:
         siswa_kelas = Siswa.objects.filter(kelas=kelas).order_by('nama')
         data_siswa = []
-        
+
         for s in siswa_kelas:
             absen = Absensi.objects.filter(siswa=s, tanggal=tanggal_obj).first()
             if absen:
                 status = absen.status
-                waktu = absen.waktu.strftime('%H:%M:%S')
+                jam_masuk = absen.jam_masuk.strftime('%H:%M:%S') if absen.jam_masuk else '-'
+                jam_pulang = absen.jam_pulang.strftime('%H:%M:%S') if absen.jam_pulang else '-'
             else:
                 status = 'Alpha'
-                waktu = '-'
-                
+                jam_masuk = '-'
+                jam_pulang = '-'
+
             data_siswa.append({
                 'nama': s.nama,
                 'nisn': s.nisn,
                 'status': status,
-                'waktu': waktu
+                'jam_masuk': jam_masuk,
+                'jam_pulang': jam_pulang,
             })
-            
+
         laporan_per_kelas.append({
             'kelas': kelas,
             'data_siswa': data_siswa
         })
-        
+
     context = {
         'tanggal': tanggal_obj,
         'laporan_per_kelas': laporan_per_kelas,
