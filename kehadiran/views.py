@@ -14,6 +14,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.conf import settings
 import logging
+from django.db import IntegrityError
 
 def halaman_scan(request):
     return render(request, 'kehadiran/scan.html')
@@ -154,29 +155,70 @@ def manajemen_siswa(request):
 
 def tambah_siswa(request):
     if request.method == 'POST':
-        nisn = request.POST.get('nisn')
-        nama = request.POST.get('nama')
-        kelas = request.POST.get('kelas')
-        no_hp_ortu = request.POST.get('no_hp_ortu')
-        
-        Siswa.objects.create(nisn=nisn, nama=nama, kelas=kelas, no_hp_ortu=no_hp_ortu)
-        return redirect('manajemen_siswa')
-        
+        nisn = request.POST.get('nisn', '').strip()
+        nama = request.POST.get('nama', '').strip()
+        kelas = request.POST.get('kelas', '').strip()
+        no_hp_ortu = request.POST.get('no_hp_ortu', '').strip()
+
+        # Validasi dasar: field wajib tidak boleh kosong
+        if not nisn or not nama or not kelas:
+            messages.error(request, 'NISN, Nama, dan Kelas wajib diisi.')
+            return render(request, 'kehadiran/tambah_siswa.html', {
+                'nisn': nisn, 'nama': nama, 'kelas': kelas, 'no_hp_ortu': no_hp_ortu,
+            })
+
+        # Cek duplikat NISN sebelum insert
+        if Siswa.objects.filter(nisn=nisn).exists():
+            messages.error(request, f'NISN "{nisn}" sudah terdaftar. Gunakan NISN lain.')
+            return render(request, 'kehadiran/tambah_siswa.html', {
+                'nisn': nisn, 'nama': nama, 'kelas': kelas, 'no_hp_ortu': no_hp_ortu,
+            })
+
+        try:
+            Siswa.objects.create(nisn=nisn, nama=nama, kelas=kelas, no_hp_ortu=no_hp_ortu)
+            messages.success(request, f'Siswa "{nama}" berhasil ditambahkan.')
+            return redirect('manajemen_siswa')
+        except IntegrityError:
+            # Jaring pengaman kalau ada race condition (dua request bersamaan)
+            messages.error(request, f'NISN "{nisn}" sudah terdaftar. Gunakan NISN lain.')
+            return render(request, 'kehadiran/tambah_siswa.html', {
+                'nisn': nisn, 'nama': nama, 'kelas': kelas, 'no_hp_ortu': no_hp_ortu,
+            })
+
     return render(request, 'kehadiran/tambah_siswa.html')
+
 
 def edit_siswa(request, pk):
     siswa = get_object_or_404(Siswa, pk=pk)
-    
-    if request.method == 'POST':
-        siswa.nisn = request.POST.get('nisn')
-        siswa.nama = request.POST.get('nama')
-        siswa.kelas = request.POST.get('kelas')
 
-        siswa.no_hp_ortu = request.POST.get('no_hp_ortu')
-        
-        siswa.save()
-        return redirect('manajemen_siswa')
-        
+    if request.method == 'POST':
+        nisn_baru = request.POST.get('nisn', '').strip()
+        nama = request.POST.get('nama', '').strip()
+        kelas = request.POST.get('kelas', '').strip()
+        no_hp_ortu = request.POST.get('no_hp_ortu', '').strip()
+
+        if not nisn_baru or not nama or not kelas:
+            messages.error(request, 'NISN, Nama, dan Kelas wajib diisi.')
+            return render(request, 'kehadiran/edit_siswa.html', {'siswa': siswa})
+
+        # Cek duplikat NISN, tapi kecualikan data siswa ini sendiri
+        if Siswa.objects.filter(nisn=nisn_baru).exclude(pk=siswa.pk).exists():
+            messages.error(request, f'NISN "{nisn_baru}" sudah dipakai siswa lain.')
+            return render(request, 'kehadiran/edit_siswa.html', {'siswa': siswa})
+
+        siswa.nisn = nisn_baru
+        siswa.nama = nama
+        siswa.kelas = kelas
+        siswa.no_hp_ortu = no_hp_ortu
+
+        try:
+            siswa.save()
+            messages.success(request, f'Data "{nama}" berhasil diperbarui.')
+            return redirect('manajemen_siswa')
+        except IntegrityError:
+            messages.error(request, f'NISN "{nisn_baru}" sudah dipakai siswa lain.')
+            return render(request, 'kehadiran/edit_siswa.html', {'siswa': siswa})
+
     context = {'siswa': siswa}
     return render(request, 'kehadiran/edit_siswa.html', context)
 

@@ -57,7 +57,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="py-8 text-center text-slate-500">Belum ada data siswa yang tersimpan di database.</td>
+                        <td colspan="6" class="py-8 text-center text-slate-500">Belum ada data siswa yang tersimpan di database.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -74,18 +74,38 @@
             html: `Anda yakin ingin menghapus data <b>${namaSiswa}</b>?<br><span class="text-slate-400 text-sm">Aksi ini tidak dapat dibatalkan.</span>`,
             icon: 'warning',
             showCancelButton: true,
-            background: '#111827', // Warna background sesuai tema web
-            color: '#ffffff',      // Teks warna putih
-            confirmButtonColor: '#ef4444', // Merah Tailwind
-            cancelButtonColor: '#334155',  // Abu-abu gelap Tailwind
+            background: '#111827',
+            color: '#ffffff',
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#334155',
             confirmButtonText: 'Ya, Hapus Data!',
             cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
-                // Jika user klik Ya, arahkan ke URL penghapusan Django
                 window.location.href = urlHapus;
             }
         });
     }
 </script>
+
+<!-- TOAST NOTIFIKASI DARI DJANGO MESSAGES (misal: sukses tambah/edit/hapus siswa) -->
+{% if messages %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        {% for message in messages %}
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: '{% if message.tags == "success" %}success{% elif message.tags == "error" %}error{% else %}info{% endif %}',
+            title: '{{ message|escapejs }}',
+            background: '#111827',
+            color: '#ffffff',
+            showConfirmButton: false,
+            timer: 3500,
+            timerProgressBar: true,
+        });
+        {% endfor %}
+    });
+</script>
+{% endif %}
 {% endblock %}
