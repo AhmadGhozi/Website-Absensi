@@ -12,11 +12,14 @@
     </style>
 </head>
 <body class="bg-white text-slate-800 p-8" onload="window.print()">
-    <!-- Tombol navigasi (sembunyi saat diprint) -->
     <div class="no-print mb-6 flex justify-between items-center">
-        <a href="/dashboard/" class="bg-slate-200 px-4 py-2 rounded-lg font-medium text-slate-700 text-sm">Kembali</a>
-        <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg font-semibold shadow text-sm">Cetak / Simpan PDF</button>
-    </div>
+    <button onclick="window.close()" class="bg-slate-200 px-4 py-2 rounded-lg font-medium text-slate-700 text-sm hover:bg-slate-300 transition">
+        <i class="fa-solid fa-xmark mr-1"></i> Kembali
+    </button>
+    <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg font-semibold shadow text-sm">
+        <i class="fa-solid fa-print mr-1"></i> Cetak / Simpan PDF
+    </button>
+</div>
 
     <!-- Kop Surat Resmi -->
     <div class="text-center border-b-4 border-slate-800 pb-4 mb-6">

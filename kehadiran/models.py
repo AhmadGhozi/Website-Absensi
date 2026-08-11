@@ -8,6 +8,7 @@ class Siswa(models.Model):
     nisn = models.CharField(max_length=20, unique=True)
     nama = models.CharField(max_length=100)
     kelas = models.CharField(max_length=50)
+    no_hp_ortu = models.CharField(max_length=15, help_text="Nomor WA Orang Tua, contoh: 628xxxxxxxxxx")
     qr_code = models.ImageField(upload_to='qr_codes/', blank=True)
 
     def save(self, *args, **kwargs):
@@ -19,7 +20,7 @@ class Siswa(models.Model):
                 box_size=10,
                 border=4,
             )
-            qr.add_data(self.nisn)  # Isi di dalam QR Code adalah NISN siswa
+            qr.add_data(self.nisn)
             qr.make(fit=True)
 
             img = qr.make_image(fill_color="black", back_color="white")

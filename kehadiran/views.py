@@ -4,6 +4,7 @@ from django.http import HttpResponse, JsonResponse
 from .models import Siswa
 import qrcode
 import json
+import requests
 from datetime import datetime, date
 from .models import Siswa, Absensi
 from django.utils import timezone
@@ -11,9 +12,58 @@ from datetime import time
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.conf import settings
+import logging
 
 def halaman_scan(request):
     return render(request, 'kehadiran/scan.html')
+
+logger = logging.getLogger(__name__)
+
+
+def kirim_wa_ortu(nomor_tujuan, nama_siswa, status_kehadiran, waktu):
+    api_url = f"{settings.WABLAS_BASE_URL}api/send-message"
+
+    pesan = (
+        f"Halo Bapak/Ibu, pemberitahuan bahwa anak Anda atas nama "
+        f"*{nama_siswa}* telah melakukan absensi di sekolah dengan status: "
+        f"*{status_kehadiran}* pada pukul {waktu}."
+    )
+
+    payload = {
+        "phone": nomor_tujuan,
+        "message": pesan,
+    }
+
+    headers = {
+        "Authorization": settings.WABLAS_TOKEN,
+    }
+
+    try:
+        response = requests.post(api_url, data=payload, headers=headers, timeout=10)
+        response.raise_for_status()
+
+        try:
+            hasil_json = response.json()
+            logger.info("Berhasil terkirim via Wablas: %s", hasil_json)
+            return hasil_json
+        except ValueError:
+            logger.error(
+                "Balasan Wablas bukan JSON (Status %s): %s",
+                response.status_code,
+                response.text,
+            )
+            return None
+
+    except requests.exceptions.Timeout:
+        logger.error("Request ke Wablas timeout.")
+        return None
+    except requests.exceptions.HTTPError as e:
+        logger.error("Wablas HTTP error: %s | Response: %s", e, response.text)
+        return None
+    except requests.exceptions.RequestException as e:
+        logger.error("Koneksi ke Wablas gagal: %s", e)
+        return None
 
 def proses_scan(request):
     if request.method == 'POST':
@@ -37,7 +87,26 @@ def proses_scan(request):
         batas_waktu = time(7, 0, 0)
         status_kehadiran = 'Terlambat' if jam_ini > batas_waktu else 'Hadir'
         
-        Absensi.objects.create(siswa=siswa, status=status_kehadiran)
+        # Simpan ke database (sesuai kode Anda)
+        Absensi.objects.create(
+            siswa=siswa, 
+            status=status_kehadiran,
+            tanggal=hari_ini,  # Saya tambahkan ini jaga-jaga jika model Anda wajib diisi
+            waktu=jam_ini      # Saya tambahkan ini jaga-jaga jika model Anda wajib diisi
+        )
+
+        if siswa.no_hp_ortu:
+            # Kita gunakan format waktu HH:MM:SS untuk pesan WA
+            format_waktu = waktu_sekarang.strftime('%H:%M:%S')
+            
+            # Panggil fungsi Wablas (pastikan fungsi kirim_wa_ortu sudah ada di file ini)
+            kirim_wa_ortu(
+                nomor_tujuan=siswa.no_hp_ortu, 
+                nama_siswa=siswa.nama, 
+                status_kehadiran=status_kehadiran, 
+                waktu=format_waktu
+            )
+        # ========================================================
         
         return JsonResponse({
             'status': 'success',
@@ -45,8 +114,8 @@ def proses_scan(request):
             'status_kehadiran': status_kehadiran,
             'waktu': waktu_sekarang.strftime('%H:%M:%S')
         })
-    
-    # TAMBAHAN INI: Jika diakses lewat GET, kembalikan ke halaman scan agar tidak error
+
+    print(f"---> HASIL SCAN DITERIMA DJANGO: '{nisn_siswa}' <---")
     return redirect('scan')
 
 @login_required
@@ -60,8 +129,9 @@ def tambah_siswa(request):
         nisn = request.POST.get('nisn')
         nama = request.POST.get('nama')
         kelas = request.POST.get('kelas')
+        no_hp_ortu = request.POST.get('no_hp_ortu')
         
-        Siswa.objects.create(nisn=nisn, nama=nama, kelas=kelas)
+        Siswa.objects.create(nisn=nisn, nama=nama, kelas=kelas, no_hp_ortu=no_hp_ortu)
         return redirect('manajemen_siswa')
         
     return render(request, 'kehadiran/tambah_siswa.html')
@@ -73,6 +143,9 @@ def edit_siswa(request, pk):
         siswa.nisn = request.POST.get('nisn')
         siswa.nama = request.POST.get('nama')
         siswa.kelas = request.POST.get('kelas')
+
+        siswa.no_hp_ortu = request.POST.get('no_hp_ortu')
+        
         siswa.save()
         return redirect('manajemen_siswa')
         
@@ -97,10 +170,8 @@ def cetak_laporan(request):
     tanggal_str = request.GET.get('tanggal', str(date.today()))
     tanggal_obj = datetime.strptime(tanggal_str, '%Y-%m-%d').date()
     
-    # Ambil pilihan kelas dari form (default 'semua')
     kelas_terpilih = request.GET.get('kelas', 'semua')
     
-    # Filter kelas berdasarkan pilihan pengguna
     if kelas_terpilih and kelas_terpilih != 'semua':
         daftar_kelas = [kelas_terpilih]
     else:
@@ -156,4 +227,4 @@ def halaman_login(request):
 
 def proses_logout(request):
     logout(request)
-    return redirect('login')
+    return redirect('/login/')

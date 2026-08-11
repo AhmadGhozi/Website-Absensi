@@ -25,6 +25,7 @@
                         <th class="py-4 px-6 font-medium">NISN</th>
                         <th class="py-4 px-6 font-medium">Nama Lengkap</th>
                         <th class="py-4 px-6 font-medium">Kelas</th>
+                        <th class="py-4 px-6">No. WA Orang Tua</th>
                         <th class="py-4 px-6 font-medium text-center">QR Code</th>
                         <th class="py-4 px-6 font-medium text-center">Aksi</th>
                     </tr>
@@ -35,6 +36,7 @@
                         <td class="py-4 px-6 font-mono text-slate-300">{{ siswa.nisn }}</td>
                         <td class="py-4 px-6 font-bold text-white">{{ siswa.nama }}</td>
                         <td class="py-4 px-6 text-slate-300">{{ siswa.kelas }}</td>
+                        <td class="py-4 px-6 text-slate-300">{{ siswa.no_hp_ortu }}</td>
                         <td class="py-4 px-6 text-center">
                             <a href="{% url 'download_qr' siswa.id %}" class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-emerald-500/20 transition inline-flex items-center gap-1">
                                 <i class="fa-solid fa-download"></i> Unduh QR
